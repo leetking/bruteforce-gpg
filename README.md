@@ -11,16 +11,16 @@ bruteforce-gpg [-h] [-v] [-t NUM_THREADS] -f WORDLIST GPG_SECRET_KEY
 ## Setup
 ### 1. Install Dependencies
 
-This tool depends on the [libgpgme](https://www.gnupg.org/software/gpgme/index.html) library.
+This tool depends on the [libgpgme](https://www.gnupg.org/software/gpgme/index.html) library and [pkg-config](http://pkg-config.freedesktop.org) tool.
 
 On Kali
 ```bash
-$ sudo apt install libgpgme-dev
+$ sudo apt install libgpgme-dev pkg-config
 ```
 
 On Arch Linux
 ```bash
-$ sudo pacman -S gpgme
+$ sudo pacman -S gpgme pkg-config
 ```
 
 ### 2. Download
@@ -41,7 +41,7 @@ $ make
 `bruteforce-gpg` will be installed in the `/usr/local/bin/` directory, so you may want to ensure it is included in your `PATH` environment variable.
 
 ```bash
-make install
+# make install
 ```
 
 ## Examples

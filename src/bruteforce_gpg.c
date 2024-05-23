@@ -1,9 +1,11 @@
+#include <stdbool.h>
+
 #include "bruteforce_gpg.h"
 #include "log.h"
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-char *bruteforce_gpg_load_secret_key(char *secret_key_filename, char **fingerprint) {
+char *bruteforce_gpg_import_secret_key(char *secret_key_filename, char **fingerprint) {
   gpgme_ctx_t context;
   gpgme_error_t err;
   gpgme_data_t secret_key_data;
@@ -76,11 +78,44 @@ char *bruteforce_gpg_load_secret_key(char *secret_key_filename, char **fingerpri
     *fingerprint = strndup(result->imports->fpr, 40);
   else
     strncpy(*fingerprint, result->imports->fpr, 40);
-    
+
   gpgme_data_release(secret_key_data);
   gpgme_release(context);
   return *fingerprint;
 }
+
+bool bruteforce_gpg_delete_secret_key(char const *fingerprint)
+{
+    gpgme_ctx_t context;
+    gpgme_error_t err;
+    gpgme_key_t key;
+    bool ret = true;
+
+    err = gpgme_new(&context);
+    if (gpgme_err_code(err) != GPG_ERR_NO_ERROR) {
+        fprintf(stderr, "Context creation failed: %s\n", gpgme_strerror(err));
+        return false;
+    }
+
+    err = gpgme_get_key(context, fingerprint, &key, true);   // secret: true
+    if (gpgme_err_code(err) != GPG_ERR_NO_ERROR) {
+        fprintf(stderr, "Failed to get secret key: %s\n", gpgme_strerror(err));
+        ret = false;
+        goto release_context;
+    }
+
+    err = gpgme_op_delete_ext(context, key, GPGME_DELETE_ALLOW_SECRET | GPGME_DELETE_FORCE);
+    if (gpgme_err_code(err) != GPG_ERR_NO_ERROR) {
+        fprintf(stderr, "Failed to delete key: %s\n", gpgme_strerror(err));
+        ret = false;
+        goto release_context;
+    }
+
+release_context:
+    gpgme_release(context);
+    return ret;
+}
+
 
 gpgme_error_t bruteforce_gpg_read_passphrases_from_file(void *hook, const char *uid_hint, const char *passphrase_info, int prev_was_bad, int fd) {
   struct callback_data *data = (struct callback_data *) hook;
@@ -196,7 +231,6 @@ void *bruteforce_gpg_crack_passphrase(void *args) {
   /* Set key as signing key */
   err = gpgme_signers_add(context, secret_key);
   if (gpgme_err_code(err) != GPG_ERR_NO_ERROR) {
-    gpgme_op_delete_ext(context, secret_key, GPGME_DELETE_ALLOW_SECRET | GPGME_DELETE_FORCE);
     gpgme_release(context);
     free(data);
     gpgme_strerror_r(err, err_buf, ERR_BUF_LEN);
@@ -211,7 +245,6 @@ void *bruteforce_gpg_crack_passphrase(void *args) {
   err = gpgme_data_new_from_mem(&signing_data, "test", 4, 0);
   if (gpgme_err_code(err) != GPG_ERR_NO_ERROR) {
     gpgme_signers_clear(context);
-    gpgme_op_delete_ext(context, secret_key, GPGME_DELETE_ALLOW_SECRET | GPGME_DELETE_FORCE);
     free(data);
     gpgme_release(context);
     gpgme_strerror_r(err, err_buf, ERR_BUF_LEN);
@@ -226,7 +259,6 @@ void *bruteforce_gpg_crack_passphrase(void *args) {
   if (gpgme_err_code(err) != GPG_ERR_NO_ERROR) {
     gpgme_data_release(signing_data);
     gpgme_signers_clear(context);
-    gpgme_op_delete_ext(context, secret_key, GPGME_DELETE_ALLOW_SECRET | GPGME_DELETE_FORCE);
     free(data);
     gpgme_release(context);
     gpgme_strerror_r(err, err_buf, ERR_BUF_LEN);
@@ -267,7 +299,6 @@ void *bruteforce_gpg_crack_passphrase(void *args) {
 
   gpgme_data_release(signature);
   gpgme_data_release(signing_data);
-  gpgme_op_delete_ext(context, secret_key, GPGME_DELETE_ALLOW_SECRET | GPGME_DELETE_FORCE);
   gpgme_signers_clear(context);
   free(data);
   gpgme_release(context);

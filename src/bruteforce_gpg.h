@@ -1,13 +1,15 @@
-#include <gpgme.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
-#include <pthread.h>
 #include <time.h>
+
+#include <pthread.h>
+#include <gpgme.h>
+
 #include "log.h"
 
-#define USAGE "%s [-h] [-v] [-t NUM_THREADS] -f WORDLIST GPG_SECRET_KEY\n"
+#define USAGE "%s [-h] [-v] [-t NUM_THREADS] -f WORDLIST GPG_SECRET_KEYFILE | FINGERPRINT\n"
 #define ERR_BUF_LEN 500
 
 struct callback_data {
@@ -27,5 +29,6 @@ struct thread_args {
   char *passphrase;
 };
 
-char *bruteforce_gpg_load_secret_key(char *secret_key_filename, char **fingerprint);
+char *bruteforce_gpg_import_secret_key(char *secret_key_filename, char **fingerprint);
+bool bruteforce_gpg_delete_secret_key(char const *fingerprint);
 void *bruteforce_gpg_crack_passphrase(void *args);
